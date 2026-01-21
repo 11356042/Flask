@@ -1,0 +1,10 @@
+{% macro chat_bubble(role, text) %}
+<div class="message {{ 'user-bubble' if role == 'user' else 'ai-bubble' }}">
+    <div class="sender-name">
+        {{ '你' if role == 'user' else 'Gemini AI' }}
+    </div>
+    <div class="message-content">
+        {{ text }}
+    </div>
+</div>
+{% endmacro %}

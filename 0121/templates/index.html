@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "macros/_messages.html" as m %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="status-bar">
+        <span class="status-dot"></span>
+        目前模型：Gemini-3-flash-preview
+    </div>
+
+    <div id="chat-box" class="chat-box">
+        {{ m.chat_bubble('ai', '您好！我是您的 AI 助手。今天有什麼我可以幫您的嗎？') }}
+    </div>
+
+    <div class="input-area">
+        <div class="input-group">
+            <input type="text" id="user-input" placeholder="輸入訊息..." onkeypress="if(event.key === 'Enter') sendMessage()">
+            <button onclick="sendMessage()" class="btn-send">發送</button>
+            <button onclick="clearChat()" class="btn-clear">清除</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 自動滾動到底部
+function scrollToBottom() {
+    const chatBox = document.getElementById('chat-box');
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// 清除對話
+function clearChat() {
+    if(confirm('確定要清除所有對話紀錄嗎？')) {
+        document.getElementById('chat-box').innerHTML = '';
+    }
+}
+
+// 發送訊息
+async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const box = document.getElementById('chat-box');
+    const msg = input.value.trim();
+
+    if (!msg) return;
+
+    // 1. 顯示使用者訊息 (手動拼接 HTML 以對應 CSS class)
+    box.innerHTML += `
+        <div class="message user-bubble">
+            <div class="sender-name">你</div>
+            <div class="message-content">${msg}</div>
+        </div>`;
+    
+    input.value = '';
+    scrollToBottom();
+
+    try {
+        // 2. 向 Flask 後端發送 POST 請求
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+        });
+
+        const data = await response.json();
+
+        // 3. 處理 AI 回應
+        if (data.status === "success") {
+            box.innerHTML += `
+                <div class="message ai-bubble">
+                    <div class="sender-name">Gemini AI</div>
+                    <div class="message-content">${data.reply}</div>
+                </div>`;
+        } else {
+            // 錯誤處理 (例如 429 或 500)
+            let errorText = data.error || "連線錯誤";
+            if (errorText.includes("429")) errorText = "API 流量達到上限，請於明天再試。";
+            box.innerHTML += `<div class="error-msg">⚠️ ${errorText}</div>`;
+        }
+    } catch (e) {
+        box.innerHTML += `<div class="error-msg">⚠️ 伺服器連線失敗</div>`;
+    }
+    
+    scrollToBottom();
+}
+</script>
+{% endblock %}
